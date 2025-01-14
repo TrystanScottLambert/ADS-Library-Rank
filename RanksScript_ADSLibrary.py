@@ -214,7 +214,7 @@ MakeLibraryRanksPlot(LibraryCode="g3xxlnShS_iiymcLRdSUFg", OutputName='Ranks_Bel
 
 
 # check the remaining calls that a user can make in a day. 
-# curl -v -H "Authorization: Bearer oNwBXV4LtYVTxAmZb3ay1jniYJqKf8hvt9JsLmxe" 'https://api.adsabs.harvard.edu/v1/search/query?q=star'
+# curl -v -H "Authorization: Bearer <token here>" 'https://api.adsabs.harvard.edu/v1/search/query?q=star'
 
 
 
