@@ -113,7 +113,7 @@ def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
 
 	'''
 	# now extracting my first-author library
-	results = requests.get("https://api.adsabs.harvard.edu/v1/biblib/libraries/"+LibraryCode+"/?rows="+str(rows),
+	results = requests.get("https://api.adsabs.harvard.edu/v1/biblib/libraries/"+LibraryCode+"?rows="+str(rows),
 	                       headers={'Authorization': 'Bearer ' + token})
 	# print(results.json()['solr']['response']['docs'])
 	Bibcodes = np.array([])
