@@ -43,10 +43,10 @@ mpl.rcParams.update(
 )
 
 
-def GetPaperRank(bibCode, token):
+def get_paper_rank(bib_code: str, token: str) -> list:
     """
     function that identifies the publication date and citation number for a single paper
-    based on a bibCode, and then extracts the distribution of citations for all refereed astronomy
+    based on a bibcode, and then extracts the distribution of citations for all refereed astronomy
     papers published in the same month. A perentage rank is then computed, rnking the paper against
     other papers from the month based on citation count.
 
@@ -61,25 +61,25 @@ def GetPaperRank(bibCode, token):
     Outputs
     -------
 
-    NumberGreaterCitations: Number of refereed publications with greater citations than the target
+    num_greater_citaitons: Number of refereed publications with greater citations than the target
                                                 paper
 
-    NumberTotalMonthPapers: Total number of refereed astro publications in the same month as target
+    num_total_month_papers: Total number of refereed astro publications in the same month as target
                                                 paper
 
-    Percentage: Rank when compared against only papers with more citations
+    percentage: Rank when compared against only papers with more citations
 
-    Percentage_upper: Rank when compared against publications with more or equal number of
+    percentage_upper: Rank when compared against publications with more or equal number of
                                         citations.
 
-    Author: Name of lead-author for target paper.
+    author: Name of lead-author for target paper.
 
-    PubDate: publication date of target paper.
+    pub_date: publication date of target paper.
 
     """
     encoded_query = urlencode(
         {
-            "q": "bibcode:" + str(bibCode),
+            "q": f"bibcode:{bib_code}",
             "fl": "title, bibcode, citation_count, property, pubdate, author",
             "rows": 1000,
         }
@@ -89,43 +89,38 @@ def GetPaperRank(bibCode, token):
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUEST_GET_TIMEOUT
     )
+
     print(
-        bibCode,
+        bib_code,
         results.json()["response"]["docs"][0]["pubdate"][0:7],
         "Citations:",
         results.json()["response"]["docs"][0]["citation_count"],
         results.json()["response"]["docs"][0]["author"][0],
     )
-    CitationCount = results.json()["response"]["docs"][0]["citation_count"]
-    PubDate = results.json()["response"]["docs"][0]["pubdate"][0:7]
-    Author = results.json()["response"]["docs"][0]["author"][0].replace(" ", "")
+    citation_count = results.json()["response"]["docs"][0]["citation_count"]
+    pub_date = results.json()["response"]["docs"][0]["pubdate"][0:7]
+    author = results.json()["response"]["docs"][0]["author"][0].replace(" ", "")
 
     # dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
-    Citationbounds = [
-        0,
-        1,
-        2,
-        4,
-        10,
-    ]
+    citation_bounds = [0, 1, 2, 4, 10]
 
     citations = np.array([])
 
-    for i, citeBound in enumerate(Citationbounds):
-        CiteStart = citeBound
-        if i == len(Citationbounds) - 1:
-            CiteEnd = 100000
+    for i, cite_bound in enumerate(citation_bounds):
+        cite_start = cite_bound
+        if i == len(citation_bounds) - 1:
+            cite_end = 100000
         else:
-            CiteEnd = Citationbounds[i + 1] - 1
+            cite_end = citation_bounds[i + 1] - 1
 
         encoded_query = urlencode({
             "q": (
-                f"pubdate:[{PubDate} TO {PubDate}] "
+                f"pubdate:[{pub_date} TO {pub_date}] "
                 f"AND collection:astronomy AND property:refereed "
-                f"AND citation_count:[{CiteStart} TO {CiteEnd}]"
+                f"AND citation_count:[{cite_start} TO {cite_end}]"
 			),
             "fl": "title, bibcode, citation_count, property, pubdate",
-             "rows": 2000,
+            "rows": 2000,
 		})
 
         results = requests.get(
@@ -135,7 +130,9 @@ def GetPaperRank(bibCode, token):
         )
 
         if len(results.json()["response"]["docs"]) == 2000:
-            print(f"WARNING: number of results in citation range {CiteStart} to {CiteEnd} reached query limit")
+            print((
+                f"WARNING: number of results in citation range {cite_start} to {cite_end} "
+                f"reached query limit"))
             print("Need to add value to citationBounds ")
 
         # now extracting the histogram of citations
@@ -143,23 +140,21 @@ def GetPaperRank(bibCode, token):
             citations = np.append(citations, doc["citation_count"])
 
     # now identifying the fraction with citations greater than or equal to the reference
-    NumberGreaterCitations = len(citations[citations >= CitationCount])
-    NumberTotalMonthPapers = len(citations)
-    Percentage = (NumberGreaterCitations / NumberTotalMonthPapers) * 100
-    Percentage_upper = (
-        len(citations[citations > CitationCount]) / NumberTotalMonthPapers
-    ) * 100
-    print("Total astro refereed papers this month:", NumberTotalMonthPapers)
-    print("Percentage rank of paper:", Percentage)
+    num_greater_citaitons = len(citations[citations >= citation_count])
+    num_total_month_papers = len(citations)
+    percentage = (num_greater_citaitons / num_total_month_papers) * 100
+    percentage_upper = (len(citations[citations > citation_count]) / num_total_month_papers) * 100
+    print("Total astro refereed papers this month:", num_total_month_papers)
+    print("Percentage rank of paper:", percentage)
     print("############################################################")
 
     return [
-        NumberGreaterCitations,
-        NumberTotalMonthPapers,
-        Percentage,
-        Percentage_upper,
-        Author,
-        PubDate,
+        num_greater_citaitons,
+        num_total_month_papers,
+        percentage,
+        percentage_upper,
+        author,
+        pub_date,
     ]
 
 
@@ -200,7 +195,7 @@ def GetLibraryRanks(LibraryCode, OutputName, token, rows=1000):
     Authors = np.array([])
     pubDate = np.array([])
     for bibcode in Bibcodes:
-        Statistics = GetPaperRank(bibCode=bibcode, token=token)
+        Statistics = get_paper_rank(bib_code=bibcode, token=token)
         ranks = np.append(ranks, Statistics[2])
         ranks_upper = np.append(ranks_upper, Statistics[3])
         paper_number = np.append(paper_number, Statistics[1])
@@ -310,4 +305,4 @@ if __name__ == "__main__":
     )
 
     # extracting the statistics for just a single paper.
-    # Statistics = GetPaperRank(bibCode = '2022MNRAS.517.6035T', token=TOKEN)
+    # Statistics = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
