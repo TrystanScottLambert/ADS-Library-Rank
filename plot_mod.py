@@ -2,8 +2,8 @@
 Module to handle plotting
 """
 
-import shutil
 import os
+import shutil
 
 import pandas as pd
 import numpy as np
@@ -49,9 +49,9 @@ mpl.rcParams.update(
 )
 
 
-def plot_ranks_plot(infile: str, outfile: str) -> None:
+def plot_ranks_plot(rank_data: pd.DataFrame, outfile: str) -> None:
     """
-    For a given ADS library, either read-in a pre-generated output dataframe if available,
+    For a given ADS library, either read-in a pre-generated rank_data dataframe if available,
     or generate a new one one using the get_library_ranks function, then generate a plot presenting
     the ranks for all paper in the library.
 
@@ -60,52 +60,60 @@ def plot_ranks_plot(infile: str, outfile: str) -> None:
     library_code: ADS library access code (identifiable though the library url
     https://ui.adsabs.harvard.edu/user/libraries/<library_code>)
 
-    output_name: Name of output files
+    outfile: Name of rank_data plot file name to be saved.
     """
-    if not os.path.isfile(infile):
-        raise FileNotFoundError(f"No file named {infile}")
-
-    output = pd.read_csv(infile)
 
     # Only update rows where '&' exists in Bibcode
-    mask = output["Bibcode"].str.contains("&", na=False)
-    output.loc[mask, "Bibcode"] = output.loc[mask, "Bibcode"].str.replace(
+    mask = rank_data["Bibcode"].str.contains("&", na=False)
+    rank_data.loc[mask, "Bibcode"] = rank_data.loc[mask, "Bibcode"].str.replace(
         "&", r"\&", n=1
     )
 
-    fig = plt.figure(figsize=(len(output["Rank"]) * 0.25, 3))
+    fig = plt.figure(figsize=(len(rank_data["Rank"]) * 0.25, 3))
     ax1 = fig.add_subplot(111)
 
     ax1.scatter(
-        np.arange(len(output["Rank"])),
-        (output["Rank"] + output["Rank_upper"]) / 2,
+        np.arange(len(rank_data["Rank"])),
+        (rank_data["Rank"] + rank_data["Rank_upper"]) / 2,
         c="k",
     )
-    sel = ((output["Rank"] + output["Rank_upper"]) / 2) < 5
+    sel = ((rank_data["Rank"] + rank_data["Rank_upper"]) / 2) < 5
     ax1.scatter(
-        np.arange(len(output["Rank"]))[sel],
-        (output["Rank"][sel] + output["Rank_upper"][sel]) / 2,
+        np.arange(len(rank_data["Rank"]))[sel],
+        (rank_data["Rank"][sel] + rank_data["Rank_upper"][sel]) / 2,
         c="orange",
     )
 
-    for i in range(len(output["Rank"])):
-        ax1.plot([i, i], [output["Rank"][i], output["Rank_upper"][i]], c="k")
+    for i in range(len(rank_data["Rank"])):
+        ax1.plot([i, i], [rank_data["Rank"][i], rank_data["Rank_upper"][i]], c="k")
     ax1.axhline(
-        np.median((output["Rank"] + output["Rank_upper"]) / 2), c="k", linestyle="--"
+        np.median((rank_data["Rank"] + rank_data["Rank_upper"]) / 2),
+        c="k",
+        linestyle="--",
     )
 
-    ax1.set_xlim([-0.5, len(output["Rank"]) - 0.5])
+    ax1.set_xlim([-0.5, len(rank_data["Rank"]) - 0.5])
     ax1.set_ylim([100, 0])
     ax1.set_ylabel("Rank of paper")
-    ax1.set_xticks(np.arange(len(output["Rank"])))
-    ax1.set_xticklabels(np.array(output["Bibcode"]), rotation=90)
+    ax1.set_xticks(np.arange(len(rank_data["Rank"])))
+    ax1.set_xticklabels(np.array(rank_data["Bibcode"]), rotation=90)
 
     ax1.grid()
 
     ax2 = ax1.twiny()
-    ax2.set_xlim([-0.5, len(output["Rank"]) - 0.5])
-    ax2.set_xticks(np.arange(len(output["Rank"])))
-    ax2.set_xticklabels(np.array(output["Author"]), rotation=90)
+    ax2.set_xlim([-0.5, len(rank_data["Rank"]) - 0.5])
+    ax2.set_xticks(np.arange(len(rank_data["Rank"])))
+    ax2.set_xticklabels(np.array(rank_data["Author"]), rotation=90)
 
     plt.savefig(outfile, bbox_inches="tight")
     plt.close()
+
+
+def read_saved_data(file_name: str) -> pd.DataFrame:
+    """
+    Helper function to read in the saved rank data.
+    """
+    if not os.path.isfile(file_name):
+        raise FileNotFoundError(f"No file named {file_name}")
+
+    return pd.read_csv(file_name)

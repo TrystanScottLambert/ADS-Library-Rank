@@ -14,8 +14,10 @@ REQUEST_GET_TIMEOUT = 10  # Seconds.
 def check_calls_available(token: str) -> None:
     """
     Checks how many ADS API calls are left using the given token.
-
     Prints remaining calls, total call limit, and reset time.
+
+    Input:
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
     """
     url = "https://api.adsabs.harvard.edu/v1/search/query?q=star"
     headers = {"Authorization": f"Bearer {token}"}
@@ -42,9 +44,13 @@ def check_calls_available(token: str) -> None:
         print("Reset time not provided in headers.")
 
 
-def scrape_bib_code_results(bib_code: str, token) -> dict:
+def scrape_bib_code_results(bib_code: str, token: str) -> dict:
     """
     Scrapes ADS results for the given bib_code.
+
+    Input:
+    bib_code: The NASA ADS bibliography code of the paper.
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
     """
     encoded_query = urlencode(
         {
@@ -70,6 +76,12 @@ def scrape_all_papers_given_month(
     """
     Scrapes all the ADS results for the month from a beginning citation to an ending citation
     (min/max citations)?
+
+    Input:
+    pub_data: publication date.
+    cite_start: minimum citations.
+    cite_end: maximum citations.
+    token:  User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
     """
 
     encoded_query = urlencode(
@@ -94,7 +106,12 @@ def scrape_all_papers_given_month(
 
 def scrape_bib_codes(library_code: str, token: str, rows: int = 1000) -> np.ndarray[str]:
     """
-    Finds all the bib codes of the given library code
+    Finds all the bib codes of the given library code.
+
+    Input:
+    library_code: NASA ADS libaray code (e.g. g3xxlnShS_iiymcLRdSUFg).
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
+    rows: Number of rows to limit search to. Default is 1000.
     """
     results = requests.get(
         f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{library_code}?rows={rows}",

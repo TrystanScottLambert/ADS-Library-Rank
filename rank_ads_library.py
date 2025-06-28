@@ -9,10 +9,14 @@ import numpy as np
 import pandas as pd
 
 from plot_mod import plot_ranks_plot
-from requests_mod import scrape_all_papers_given_month, scrape_bib_code_results, scrape_bib_codes,\
-      check_calls_available
+from requests_mod import (
+    scrape_all_papers_given_month,
+    scrape_bib_code_results,
+    scrape_bib_codes,
+    check_calls_available,
+)
 
-REQUEST_GET_TIMEOUT = 10  #Seconds.
+REQUEST_GET_TIMEOUT = 10  # Seconds.
 
 
 @dataclass
@@ -39,19 +43,15 @@ class PaperRankResult:
 
 def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     """
-    function that identifies the publication date and citation number for a single paper
+    Function that identifies the publication date and citation number for a single paper
     based on a bibcode, and then extracts the distribution of citations for all refereed astronomy
-    papers published in the same month. A perentage rank is then computed, rnking the paper against
-    other papers from the month base on citation count.
+    papers published in the same month. A percentage rank is then computed, ranking the paper
+    against other papers from the month base on citation count.
 
     Arguments
     ----------
-
     bibcode: ADS bibcode of the targeted paper.
-
-    token: ADS API token (user-specific, to be accessed online at
-    https://ui.adsabs.harvard.edu/user/settings/token)
-
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
     """
 
     doc = scrape_bib_code_results(bib_code, token)
@@ -80,7 +80,9 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
 
         docs = scrape_all_papers_given_month(pub_date, cite_start, cite_end, token)
         if len(docs) == 2000:
-            warnings.warn(f"Query limits reached in citation raneg {cite_start} to {cite_end}")
+            warnings.warn(
+                f"Query limits reached in citation raneg {cite_start} to {cite_end}"
+            )
 
         # Extracting the histogram of citations
         for doc in docs:
@@ -108,17 +110,15 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     return result
 
 
-def get_library_ranks(library_code: str, output_name: str, token: str) -> None:
+def get_library_ranks(library_code: str, token: str) -> pd.DataFrame:
     """
     For a given ADS library, identify the relevant bibcodes,
     and compile the rank statistics, saving an output dataframe.
 
     Arguments
     ---------
-    library_code: ADS library access code
-    output_name: Name of output files
-    token: api token
-    rows: maximum number of papers to extract from library (default 1000)
+    library_code: ADS library access code.
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
     """
 
     bib_codes = scrape_bib_codes(library_code, token)
@@ -140,23 +140,47 @@ def get_library_ranks(library_code: str, output_name: str, token: str) -> None:
         )
 
     output = pd.DataFrame(records)
-    output.to_csv(output_name, index=False)
+    return output
+
+
+def do_all(library_code: str, token: str, file_name: str) -> None:
+    """
+    Essentially a main function that will perform all the steps. For lazies.
+
+    Input:
+    library_code: NASA ADS libaray code (e.g. g3xxlnShS_iiymcLRdSUFg).
+    token: User token. Can be generated here: https://ui.adsabs.harvard.edu/user/settings/token
+    file_name: The file_name structure which will be used for the output data file and plots.
+
+    Output:
+    No output. Saves the rank data as <file_name>.csv and the plot as <file_name>.pdf
+    """
+    data_outfile = f"{file_name}.csv"
+    plot_outfile = f"{file_name}.pdf"
+
+    # Scrape and save library data.
+    rank_df = get_library_ranks(library_code, token)
+    rank_df.to_csv(data_outfile, index=False)
+
+    # Save plots as pdf.
+    plot_ranks_plot(rank_df, plot_outfile)
 
 
 if __name__ == "__main__":
-
     # personal access token
-    # (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
+    # (user-specific, to be accessed online at )
     TOKEN = "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
     LIBRARY_CODE = "g3xxlnShS_iiymcLRdSUFg"
     SCRAPED_DATA_NAME = "bellstedt_first_author.csv"
 
     # Save the data as csv
-    get_library_ranks(LIBRARY_CODE, SCRAPED_DATA_NAME, TOKEN)
+    rank_data = get_library_ranks(LIBRARY_CODE, TOKEN)
+    rank_data.to_csv(SCRAPED_DATA_NAME, index=False)
+
     plot_ranks_plot(SCRAPED_DATA_NAME, "bellstedt_plot.pdf")
 
     # extracting the statistics for just a single paper.
-    stats = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
+    stats = get_paper_rank(bib_code="2022MNRAS.517.6035T", token=TOKEN)
 
     # checking you still have requests
     check_calls_available(TOKEN)
