@@ -108,12 +108,12 @@ def GetPaperRank(bibCode, token):
 
     citations = np.array([])
 
-    for citeBound in range(len(Citationbounds)):
-        CiteStart = Citationbounds[citeBound]
-        if citeBound == len(Citationbounds) - 1:
+    for i, citeBound in enumerate(Citationbounds):
+        CiteStart = citeBound
+        if i == len(Citationbounds) - 1:
             CiteEnd = 100000
         else:
-            CiteEnd = Citationbounds[citeBound + 1] - 1
+            CiteEnd = Citationbounds[i + 1] - 1
 
         encoded_query = urlencode(
             {
@@ -146,10 +146,8 @@ def GetPaperRank(bibCode, token):
             print("Need to add value to citationBounds ")
 
         # now extracting the histogram of citations
-        for ii in range(len(results.json()["response"]["docs"])):
-            citations = np.append(
-                citations, results.json()["response"]["docs"][ii]["citation_count"]
-            )
+        for doc in results.json()["response"]["docs"]:
+            citations = np.append(citations, doc["citation_count"])
 
     # now identifying the fraction with citations greater than or equal to the reference
     NumberGreaterCitations = len(citations[citations >= CitationCount])
