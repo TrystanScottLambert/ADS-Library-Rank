@@ -6,6 +6,7 @@ import os
 import shutil
 from urllib.parse import urlencode
 from dataclasses import dataclass
+from datetime import datetime, UTC
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -276,20 +277,41 @@ def make_library_ranks_plot(library_code, output_name, token):
     plt.close()
 
 
+
+
 def check_calls_available(token: str) -> None:
     """
-    Runs a curl command with the given token to check how many calls are left.
+    Checks how many ADS API calls are left using the given token.
+
+    Prints remaining calls, total call limit, and reset time.
     """
     url = "https://api.adsabs.harvard.edu/v1/search/query?q=star"
-    command = f"curl -v -H 'Authorization: Bearer {token}' '{url}'"
-    os.system(command)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers, timeout=REQUEST_GET_TIMEOUT)
 
+    if response.status_code != 200:
+        print(f"Error: HTTP {response.status_code}")
+        print(response.text)
+        return
+
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    limit = response.headers.get("X-RateLimit-Limit")
+    reset = response.headers.get("X-RateLimit-Reset")
+
+    print(f"API Call Limit:     {limit}")
+    print(f"Calls Remaining:    {remaining}")
+
+    if reset:
+        reset_time = datetime.fromtimestamp(int(reset), tz=UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
+        print(f"Limit Resets At:    {reset_time}")
+    else:
+        print("Reset time not provided in headers.")
 
 if __name__ == "__main__":
 
     # personal access token
     # (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
-    TOKEN = ""
+    TOKEN = "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
 
     # making the full output for a single ADS library.
     make_library_ranks_plot(
@@ -299,4 +321,4 @@ if __name__ == "__main__":
     )
 
     # extracting the statistics for just a single paper.
-    # Statistics = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
+    stats = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
