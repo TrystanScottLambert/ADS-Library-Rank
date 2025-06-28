@@ -89,6 +89,7 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
             "rows": 1000,
         }
     )
+
     results = requests.get(
         f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
         headers={"Authorization": f"Bearer {token}"},
@@ -114,7 +115,7 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     for i, cite_bound in enumerate(citation_bounds):
         cite_start = cite_bound
         if i == len(citation_bounds) - 1:
-            cite_end = 100000
+            cite_end = 100_000
         else:
             cite_end = citation_bounds[i + 1] - 1
 
@@ -211,7 +212,7 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
     output.to_csv(output_name + ".csv", index=False)
 
 
-def MakeLibraryRanksPlot(library_code, output_name, token):
+def make_library_ranks_plot(library_code, output_name, token):
     """
     For a given ADS library, either read-in a pre-generated output dataframe if available,
     or generate a new one one using the get_library_ranks function, then generate a plot presenting
@@ -227,50 +228,50 @@ def MakeLibraryRanksPlot(library_code, output_name, token):
     if not os.path.isfile(f"{output_name}.csv"):
         get_library_ranks(library_code, output_name, token)
 
-    Output = pd.read_csv(f"{output_name}.csv")
+    output = pd.read_csv(f"{output_name}.csv")
 
-    for i in range(len(Output["Rank"])):
-        if "&" in Output["Bibcode"][i]:
-            Output.loc[i, "Bibcode"] = (
-                Output["Bibcode"][i].split("&")[0]
+    for i in range(len(output["Rank"])):
+        if "&" in output["Bibcode"][i]:
+            output.loc[i, "Bibcode"] = (
+                output["Bibcode"][i].split("&")[0]
                 + "\&"
-                + Output["Bibcode"][i].split("&")[1]
+                + output["Bibcode"][i].split("&")[1]
             )
 
     # now finally making a plot of the output
-    fig = plt.figure(figsize=(len(Output["Rank"]) * 0.25, 3))
+    fig = plt.figure(figsize=(len(output["Rank"]) * 0.25, 3))
     ax1 = plt.subplot(111)
 
     ax1.scatter(
-        np.arange(len(Output["Rank"])),
-        (Output["Rank"] + Output["Rank_upper"]) / 2,
+        np.arange(len(output["Rank"])),
+        (output["Rank"] + output["Rank_upper"]) / 2,
         c="k",
     )
-    Sel = ((Output["Rank"] + Output["Rank_upper"]) / 2) < 5
+    sel = ((output["Rank"] + output["Rank_upper"]) / 2) < 5
     ax1.scatter(
-        np.arange(len(Output["Rank"]))[Sel],
-        (Output["Rank"][Sel] + Output["Rank_upper"][Sel]) / 2,
+        np.arange(len(output["Rank"]))[sel],
+        (output["Rank"][sel] + output["Rank_upper"][sel]) / 2,
         c="orange",
     )
-    # ax1.scatter(np.arange(len(Output['Rank_upper'])), Output['Rank_upper'], c='k', marker='_')
-    for jj in range(len(Output["Rank"])):
-        ax1.plot([jj, jj], [Output["Rank"][jj], Output["Rank_upper"][jj]], c="k")
+    
+    for jj in range(len(output["Rank"])):
+        ax1.plot([jj, jj], [output["Rank"][jj], output["Rank_upper"][jj]], c="k")
     ax1.axhline(
-        np.median((Output["Rank"] + Output["Rank_upper"]) / 2), c="k", linestyle="--"
+        np.median((output["Rank"] + output["Rank_upper"]) / 2), c="k", linestyle="--"
     )
 
-    ax1.set_xlim([-0.5, len(Output["Rank"]) - 0.5])
+    ax1.set_xlim([-0.5, len(output["Rank"]) - 0.5])
     ax1.set_ylim([100, 0])
     ax1.set_ylabel("Rank of paper")
-    ax1.set_xticks(np.arange(len(Output["Rank"])))
-    ax1.set_xticklabels(np.array(Output["Bibcode"]), rotation=90)
+    ax1.set_xticks(np.arange(len(output["Rank"])))
+    ax1.set_xticklabels(np.array(output["Bibcode"]), rotation=90)
 
     ax1.grid()
 
     ax2 = ax1.twiny()
-    ax2.set_xlim([-0.5, len(Output["Rank"]) - 0.5])
-    ax2.set_xticks(np.arange(len(Output["Rank"])))
-    ax2.set_xticklabels(np.array(Output["Author"]), rotation=90)
+    ax2.set_xlim([-0.5, len(output["Rank"]) - 0.5])
+    ax2.set_xticks(np.arange(len(output["Rank"])))
+    ax2.set_xticklabels(np.array(output["Author"]), rotation=90)
 
     plt.savefig(output_name + ".pdf", bbox_inches="tight")
     plt.close()
@@ -292,7 +293,7 @@ if __name__ == "__main__":
     TOKEN = ""
 
     # making the full output for a single ADS library.
-    MakeLibraryRanksPlot(
+    make_library_ranks_plot(
         library_code="g3xxlnShS_iiymcLRdSUFg",
         output_name="Ranks_BellstedtFirstAuthor",
         token=TOKEN,
