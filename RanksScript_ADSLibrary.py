@@ -12,6 +12,7 @@ import pandas as pd
 import requests
 
 FONT_SIZE = 12
+REQUEST_GET_TIMEOUT = 10  # seconds
 mpl.rcParams.update(
     {
         "font.size": FONT_SIZE,
@@ -98,13 +99,14 @@ def GetPaperRank(bibCode, token):
     PubDate = results.json()["response"]["docs"][0]["pubdate"][0:7]
     Author = results.json()["response"]["docs"][0]["author"][0].replace(" ", "")
 
+    # dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
     Citationbounds = [
         0,
         1,
         2,
         4,
         10,
-    ]  # dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
+    ]
 
     citations = np.array([])
 
@@ -131,18 +133,13 @@ def GetPaperRank(bibCode, token):
             }
         )
         results = requests.get(
-            "https://api.adsabs.harvard.edu/v1/search/query?{}".format(encoded_query),
+            f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
             headers={"Authorization": "Bearer " + token},
+            timeout=REQUEST_GET_TIMEOUT,
         )
 
         if len(results.json()["response"]["docs"]) == 2000:
-            print(
-                "WARNING: number of results in citation range ",
-                CiteStart,
-                "to",
-                CiteEnd,
-                " reached query limit",
-            )
+            print(f"WARNING: number of results in citation range {CiteStart} to {CiteEnd} reached query limit")
             print("Need to add value to citationBounds ")
 
         # now extracting the histogram of citations
@@ -170,7 +167,7 @@ def GetPaperRank(bibCode, token):
     ]
 
 
-def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
+def GetLibraryRanks(LibraryCode, OutputName, token, rows=1000):
     """
     For a given ADS library, identify the relevant bibcodes,
     and compile the rank statistics, saving an output dataframe.
@@ -187,14 +184,12 @@ def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
 
     """
     # now extracting my first-author library
+
     results = requests.get(
-        "https://api.adsabs.harvard.edu/v1/biblib/libraries/"
-        + LibraryCode
-        + "?rows="
-        + str(rows),
+        f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{LibraryCode}?rows={rows}",
         headers={"Authorization": "Bearer " + token},
+        timeout=REQUEST_GET_TIMEOUT,
     )
-    # print(results.json()['solr']['response']['docs'])
     Bibcodes = np.array([])
     for ii in range(len(results.json()["solr"]["response"]["docs"])):
         Bibcodes = np.append(
@@ -231,7 +226,7 @@ def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
     Output.to_csv(OutputName + ".csv", index=False)
 
 
-def MakeLibraryRanksPlot(LibraryCode, OutputName):
+def MakeLibraryRanksPlot(LibraryCode, OutputName, token):
     """
     For a given ADS library, either read-in a pre-generated output dataframe if available,
     or generate a new one one using the GetLibraryRanks function, then generate a plot presenting
@@ -244,17 +239,17 @@ def MakeLibraryRanksPlot(LibraryCode, OutputName):
 
     OutputName: Name of output files
     """
-    if not os.path.isfile(OutputName + ".csv"):
-        GetLibraryRanks(LibraryCode, OutputName)
+    if not os.path.isfile(f"{OutputName}.csv"):
+        GetLibraryRanks(LibraryCode, OutputName, token)
 
-    Output = pd.read_csv(OutputName + ".csv")
+    Output = pd.read_csv(f"{OutputName}.csv")
 
-    for ii in range(len(Output["Rank"])):
-        if "&" in Output["Bibcode"][ii]:
-            Output.loc[ii, "Bibcode"] = (
-                Output["Bibcode"][ii].split("&")[0]
+    for i in range(len(Output["Rank"])):
+        if "&" in Output["Bibcode"][i]:
+            Output.loc[i, "Bibcode"] = (
+                Output["Bibcode"][i].split("&")[0]
                 + "\&"
-                + Output["Bibcode"][ii].split("&")[1]
+                + Output["Bibcode"][i].split("&")[1]
             )
 
     # now finally making a plot of the output
@@ -313,7 +308,9 @@ if __name__ == "__main__":
 
     # making the full output for a single ADS library.
     MakeLibraryRanksPlot(
-        LibraryCode="g3xxlnShS_iiymcLRdSUFg", OutputName="Ranks_BellstedtFirstAuthor"
+        LibraryCode="g3xxlnShS_iiymcLRdSUFg",
+        OutputName="Ranks_BellstedtFirstAuthor",
+        token=TOKEN,
     )
 
     # extracting the statistics for just a single paper.
