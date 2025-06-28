@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 import requests
 
-fsize = 12
+FONT_SIZE = 12
 mpl.rcParams.update(
     {
-        "font.size": fsize,
+        "font.size": FONT_SIZE,
         "xtick.major.size": 8,
         "ytick.major.size": 8,
         "xtick.major.width": 1,
@@ -29,7 +29,7 @@ mpl.rcParams.update(
         "font.serif": "Times New Roman",
         "legend.numpoints": 1,
         "legend.columnspacing": 1,
-        "legend.fontsize": fsize - 2,
+        "legend.fontsize": FONT_SIZE - 2,
         "legend.frameon": False,
         "legend.labelspacing": 0.3,
         "lines.markeredgewidth": 1.0,
@@ -54,18 +54,22 @@ def GetPaperRank(bibCode, token):
 
     bibcode: ADS bibcode of the targeted paper.
 
-    token: ADS API token (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
+    token: ADS API token (user-specific, to be accessed online at
+    https://ui.adsabs.harvard.edu/user/settings/token)
 
     Outputs
     -------
 
-    NumberGreaterCitations: Number of refereed publications with greater citations than the target paper
+    NumberGreaterCitations: Number of refereed publications with greater citations than the target
+                                                paper
 
-    NumberTotalMonthPapers: Total number of refereed astro publications in the same month as target paper
+    NumberTotalMonthPapers: Total number of refereed astro publications in the same month as target
+                                                paper
 
     Percentage: Rank when compared against only papers with more citations
 
-    Percentage_upper: Rank when compared against publications with more or equal number of citations.
+    Percentage_upper: Rank when compared against publications with more or equal number of
+                                        citations.
 
     Author: Name of lead-author for target paper.
 
@@ -100,7 +104,7 @@ def GetPaperRank(bibCode, token):
         2,
         4,
         10,
-    ]  # dividing the citation ditribution into chunks with fewer than 2000 hits, so as not to hit limit.
+    ]  # dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
 
     citations = np.array([])
 
@@ -170,7 +174,8 @@ def GetPaperRank(bibCode, token):
 
 def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
     """
-    For a given ADS library, identify the relevant bibcodes, and compile the rank statistics, saving an output dataframe.
+    For a given ADS library, identify the relevant bibcodes,
+    and compile the rank statistics, saving an output dataframe.
 
     Arguments
     ---------
@@ -230,16 +235,16 @@ def GetLibraryRanks(LibraryCode, OutputName, rows=1000):
 
 def MakeLibraryRanksPlot(LibraryCode, OutputName):
     """
-    For a given ADS library, either read-in a pre-generated output dataframe if available, or generate a new
-    one one using the GetLibraryRanks function, then generate a plot presenting the ranks for all paper in the library.
+    For a given ADS library, either read-in a pre-generated output dataframe if available,
+    or generate a new one one using the GetLibraryRanks function, then generate a plot presenting
+    the ranks for all paper in the library.
 
     Arguments
     ---------
-    LibraryCode: ADS library access code (identifiable though the library url https://ui.adsabs.harvard.edu/user/libraries/<LibraryCode>)
+    LibraryCode: ADS library access code (identifiable though the library url
+    https://ui.adsabs.harvard.edu/user/libraries/<LibraryCode>)
 
     OutputName: Name of output files
-
-
     """
     if not os.path.isfile(OutputName + ".csv"):
         GetLibraryRanks(LibraryCode, OutputName)
@@ -293,21 +298,25 @@ def MakeLibraryRanksPlot(LibraryCode, OutputName):
     plt.close()
 
 
-#############################################################
-################ NEED TO ADD TOKEN HERE #####################
-#############################################################
-# personal access token
-# (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
-token = ""
-#############################################################
+def check_calls_available(token: str) -> None:
+    """
+    Runs a curl command with the given token to check how many calls are left.
+    """
+    url = "https://api.adsabs.harvard.edu/v1/search/query?q=star"
+    command = f"curl -v -H 'Authorization: Bearer {token}' '{url}'"
+    os.system(command)
 
-# making the full output for a single ADS library.
-MakeLibraryRanksPlot(
-    LibraryCode="g3xxlnShS_iiymcLRdSUFg", OutputName="Ranks_BellstedtFirstAuthor"
-)
 
-# extracting the statistics for just a single paper.
-# Statistics = GetPaperRank(bibCode = '2022MNRAS.517.6035T', token=token)
+if __name__ == "__main__":
 
-# check the remaining calls that a user can make in a day.
-# curl -v -H "Authorization: Bearer <token here>" 'https://api.adsabs.harvard.edu/v1/search/query?q=star'
+    # personal access token
+    # (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
+    TOKEN = ""
+
+    # making the full output for a single ADS library.
+    MakeLibraryRanksPlot(
+        LibraryCode="g3xxlnShS_iiymcLRdSUFg", OutputName="Ranks_BellstedtFirstAuthor"
+    )
+
+    # extracting the statistics for just a single paper.
+    # Statistics = GetPaperRank(bibCode = '2022MNRAS.517.6035T', token=TOKEN)
