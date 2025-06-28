@@ -63,7 +63,7 @@ class PaperRankResult:
     percentage: float
     percentage_upper: float
     author: str
-    pub_data: str
+    pub_date: str
 
 
 def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
@@ -171,16 +171,16 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     return result
 
 
-def GetLibraryRanks(LibraryCode, OutputName, token, rows=1000):
+def get_library_ranks(library_code, output_name, token, rows=1000):
     """
     For a given ADS library, identify the relevant bibcodes,
     and compile the rank statistics, saving an output dataframe.
 
     Arguments
     ---------
-    LibraryCode: ADS library access code
+    library_code: ADS library access code
 
-    OutputName: Name of output files
+    output_name: Name of output files
 
     rows: maximum number of papers to extract from library
                     (default 1000)
@@ -190,63 +190,61 @@ def GetLibraryRanks(LibraryCode, OutputName, token, rows=1000):
     # now extracting my first-author library
 
     results = requests.get(
-        f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{LibraryCode}?rows={rows}",
+        f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{library_code}?rows={rows}",
         headers={"Authorization": "Bearer " + token},
         timeout=REQUEST_GET_TIMEOUT,
     )
-    Bibcodes = np.array([])
-    for ii in range(len(results.json()["solr"]["response"]["docs"])):
-        Bibcodes = np.append(
-            Bibcodes, results.json()["solr"]["response"]["docs"][ii]["bibcode"]
-        )
+    bib_codes = np.array([])
+    for doc in results.json()["solr"]["response"]["docs"]:
+        bib_codes = np.append(bib_codes, doc["bibcode"])
 
-    print(Bibcodes)
+    print(bib_codes)
 
     ranks = np.array([])
     ranks_upper = np.array([])
     paper_number = np.array([])
-    Authors = np.array([])
-    pubDate = np.array([])
-    for bibcode in Bibcodes:
-        Statistics = get_paper_rank(bib_code=bibcode, token=token)
-        ranks = np.append(ranks, Statistics[2])
-        ranks_upper = np.append(ranks_upper, Statistics[3])
-        paper_number = np.append(paper_number, Statistics[1])
-        Authors = np.append(Authors, Statistics[4])
-        pubDate = np.append(pubDate, Statistics[5])
+    authors = np.array([])
+    pub_dates = np.array([])
+    for bibcode in bib_codes:
+        statistics = get_paper_rank(bib_code=bibcode, token=token)
+        ranks = np.append(ranks, statistics.percentage)
+        ranks_upper = np.append(ranks_upper, statistics.percentage_upper)
+        paper_number = np.append(paper_number, statistics.total_papers_month)
+        authors = np.append(authors, statistics.author)
+        pub_dates = np.append(pub_dates, statistics.pub_date)
 
     # now saving the outputs
 
-    Output = pd.DataFrame(
+    output = pd.DataFrame(
         {
-            "Bibcode": Bibcodes,
-            "Author": Authors,
-            "PublicationDate": pubDate,
+            "Bibcode": bib_codes,
+            "Author": authors,
+            "PublicationDate": pub_dates,
             "Rank": ranks,
             "Rank_upper": ranks_upper,
             "PaperNumber": paper_number,
         }
     )
-    Output.to_csv(OutputName + ".csv", index=False)
+    output.to_csv(output_name + ".csv", index=False)
 
 
-def MakeLibraryRanksPlot(LibraryCode, OutputName, token):
+def MakeLibraryRanksPlot(library_code, output_name, token):
     """
     For a given ADS library, either read-in a pre-generated output dataframe if available,
-    or generate a new one one using the GetLibraryRanks function, then generate a plot presenting
+    or generate a new one one using the get_library_ranks function, then generate a plot presenting
     the ranks for all paper in the library.
 
     Arguments
     ---------
-    LibraryCode: ADS library access code (identifiable though the library url
-    https://ui.adsabs.harvard.edu/user/libraries/<LibraryCode>)
+    library_code: ADS library access code (identifiable though the library url
+    https://ui.adsabs.harvard.edu/user/libraries/<library_code>)
 
-    OutputName: Name of output files
+    output_name: Name of output files
     """
-    if not os.path.isfile(f"{OutputName}.csv"):
-        GetLibraryRanks(LibraryCode, OutputName, token)
+    if not os.path.isfile(f"{output_name}.csv"):
+        get_library_ranks(library_code, output_name, token)
 
-    Output = pd.read_csv(f"{OutputName}.csv")
+    Output = pd.read_csv(f"{output_name}.csv")
 
     for i in range(len(Output["Rank"])):
         if "&" in Output["Bibcode"][i]:
@@ -291,7 +289,7 @@ def MakeLibraryRanksPlot(LibraryCode, OutputName, token):
     ax2.set_xticks(np.arange(len(Output["Rank"])))
     ax2.set_xticklabels(np.array(Output["Author"]), rotation=90)
 
-    plt.savefig(OutputName + ".pdf", bbox_inches="tight")
+    plt.savefig(output_name + ".pdf", bbox_inches="tight")
     plt.close()
 
 
@@ -312,8 +310,8 @@ if __name__ == "__main__":
 
     # making the full output for a single ADS library.
     MakeLibraryRanksPlot(
-        LibraryCode="g3xxlnShS_iiymcLRdSUFg",
-        OutputName="Ranks_BellstedtFirstAuthor",
+        library_code="g3xxlnShS_iiymcLRdSUFg",
+        output_name="Ranks_BellstedtFirstAuthor",
         token=TOKEN,
     )
 
