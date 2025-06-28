@@ -2,14 +2,15 @@
 Script to query an ADS library and construct the Sabine plots.
 """
 
-from urllib.parse import urlencode
 from dataclasses import dataclass
+import warnings
 
 import numpy as np
 import pandas as pd
-import requests
 
 from plot_mod import plot_ranks_plot
+from requests_mod import scrape_all_papers_given_month, scrape_bib_code_results, scrape_bib_codes,\
+      check_calls_available
 
 REQUEST_GET_TIMEOUT = 10  #Seconds.
 
@@ -52,21 +53,8 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     https://ui.adsabs.harvard.edu/user/settings/token)
 
     """
-    encoded_query = urlencode(
-        {
-            "q": f"bibcode:{bib_code}",
-            "fl": "title, bibcode, citation_count, property, pubdate, author",
-            "rows": 1000,
-        }
-    )
 
-    results = requests.get(
-        f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=REQUEST_GET_TIMEOUT,
-    )
-
-    doc = results.json()["response"]["docs"][0]
+    doc = scrape_bib_code_results(bib_code, token)
     print(
         bib_code,
         doc["pubdate"][0:7],
@@ -90,35 +78,12 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
         else:
             cite_end = citation_bounds[i + 1] - 1
 
-        encoded_query = urlencode(
-            {
-                "q": (
-                    f"pubdate:[{pub_date} TO {pub_date}] "
-                    f"AND collection:astronomy AND property:refereed "
-                    f"AND citation_count:[{cite_start} TO {cite_end}]"
-                ),
-                "fl": "title, bibcode, citation_count, property, pubdate",
-                "rows": 2000,
-            }
-        )
-
-        results = requests.get(
-            f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
-            headers={"Authorization": "Bearer " + token},
-            timeout=REQUEST_GET_TIMEOUT,
-        )
-
-        if len(results.json()["response"]["docs"]) == 2000:
-            print(
-                (
-                    f"WARNING: number of results in citation range {cite_start} to {cite_end} "
-                    f"reached query limit"
-                )
-            )
-            print("Need to add value to citationBounds ")
+        docs = scrape_all_papers_given_month(pub_date, cite_start, cite_end, token)
+        if len(docs) == 2000:
+            warnings.warn(f"Query limits reached in citation raneg {cite_start} to {cite_end}")
 
         # Extracting the histogram of citations
-        for doc in results.json()["response"]["docs"]:
+        for doc in docs:
             citations = np.append(citations, doc["citation_count"])
 
     # Identifying the fraction with citations greater than or equal to the reference
@@ -143,7 +108,7 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     return result
 
 
-def get_library_ranks(library_code, output_name, token, rows=1000):
+def get_library_ranks(library_code: str, output_name: str, token: str) -> None:
     """
     For a given ADS library, identify the relevant bibcodes,
     and compile the rank statistics, saving an output dataframe.
@@ -156,14 +121,7 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
     rows: maximum number of papers to extract from library (default 1000)
     """
 
-    results = requests.get(
-        f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{library_code}?rows={rows}",
-        headers={"Authorization": "Bearer " + token},
-        timeout=REQUEST_GET_TIMEOUT,
-    )
-    bib_codes = np.array([])
-    for doc in results.json()["solr"]["response"]["docs"]:
-        bib_codes = np.append(bib_codes, doc["bibcode"])
+    bib_codes = scrape_bib_codes(library_code, token)
 
     print(bib_codes)
 
@@ -182,7 +140,7 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
         )
 
     output = pd.DataFrame(records)
-    output.to_csv(output_name + ".csv", index=False)
+    output.to_csv(output_name, index=False)
 
 
 if __name__ == "__main__":
@@ -190,15 +148,15 @@ if __name__ == "__main__":
     # personal access token
     # (user-specific, to be accessed online at https://ui.adsabs.harvard.edu/user/settings/token)
     TOKEN = "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
+    LIBRARY_CODE = "g3xxlnShS_iiymcLRdSUFg"
+    SCRAPED_DATA_NAME = "bellstedt_first_author.csv"
 
-    # making the full output for a single ADS library.
-    #make_library_ranks_plot(
-    #    library_code="g3xxlnShS_iiymcLRdSUFg",
-    #    output_name="Ranks_BellstedtFirstAuthor",
-    #    token=TOKEN,
-    #)
-
-    plot_ranks_plot("Ranks_BellstedtFirstAuthor.csv", "Poo.pdf")
+    # Save the data as csv
+    get_library_ranks(LIBRARY_CODE, SCRAPED_DATA_NAME, TOKEN)
+    plot_ranks_plot(SCRAPED_DATA_NAME, "bellstedt_plot.pdf")
 
     # extracting the statistics for just a single paper.
     stats = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
+
+    # checking you still have requests
+    check_calls_available(TOKEN)
