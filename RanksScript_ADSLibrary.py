@@ -85,8 +85,9 @@ def GetPaperRank(bibCode, token):
         }
     )
     results = requests.get(
-        "https://api.adsabs.harvard.edu/v1/search/query?{}".format(encoded_query),
-        headers={"Authorization": "Bearer " + token},
+        f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=REQUEST_GET_TIMEOUT
     )
     print(
         bibCode,
@@ -117,21 +118,16 @@ def GetPaperRank(bibCode, token):
         else:
             CiteEnd = Citationbounds[i + 1] - 1
 
-        encoded_query = urlencode(
-            {
-                "q": "pubdate:["
-                + PubDate
-                + " TO "
-                + PubDate
-                + "] AND collection:astronomy AND property:refereed AND citation_count:["
-                + str(CiteStart)
-                + " TO "
-                + str(CiteEnd)
-                + "]",
-                "fl": "title, bibcode, citation_count, property, pubdate",
-                "rows": 2000,
-            }
-        )
+        encoded_query = urlencode({
+            "q": (
+                f"pubdate:[{PubDate} TO {PubDate}] "
+                f"AND collection:astronomy AND property:refereed "
+                f"AND citation_count:[{CiteStart} TO {CiteEnd}]"
+			),
+            "fl": "title, bibcode, citation_count, property, pubdate",
+             "rows": 2000,
+		})
+
         results = requests.get(
             f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
             headers={"Authorization": "Bearer " + token},
