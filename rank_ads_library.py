@@ -9,14 +9,7 @@ import numpy as np
 import pandas as pd
 
 from plot_mod import plot_ranks_plot
-from requests_mod import (
-    scrape_all_papers_given_month,
-    scrape_bib_code_results,
-    scrape_bib_codes,
-    check_calls_available,
-)
-
-REQUEST_GET_TIMEOUT = 10  # Seconds.
+from requests_mod import scrape_all_papers_given_month, scrape_bib_code_results, scrape_bib_codes
 
 
 @dataclass
@@ -167,20 +160,8 @@ def do_all(library_code: str, token: str, file_name: str) -> None:
 
 
 if __name__ == "__main__":
-    # personal access token
-    # (user-specific, to be accessed online at )
-    TOKEN = "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
-    LIBRARY_CODE = "g3xxlnShS_iiymcLRdSUFg"
-    SCRAPED_DATA_NAME = "bellstedt_first_author.csv"
+    TOKEN  =  "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
+    LIBRARY_CODE  =  "g3xxlnShS_iiymcLRdSUFg"
+    SCRAPED_DATA_NAME  =  "first_author"
 
-    # Save the data as csv
-    rank_data = get_library_ranks(LIBRARY_CODE, TOKEN)
-    rank_data.to_csv(SCRAPED_DATA_NAME, index=False)
-
-    plot_ranks_plot(SCRAPED_DATA_NAME, "bellstedt_plot.pdf")
-
-    # extracting the statistics for just a single paper.
-    stats = get_paper_rank(bib_code="2022MNRAS.517.6035T", token=TOKEN)
-
-    # checking you still have requests
-    check_calls_available(TOKEN)
+    do_all(LIBRARY_CODE, TOKEN, SCRAPED_DATA_NAME)
