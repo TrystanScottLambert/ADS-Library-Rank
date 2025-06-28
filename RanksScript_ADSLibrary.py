@@ -179,15 +179,10 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
     Arguments
     ---------
     library_code: ADS library access code
-
     output_name: Name of output files
-
-    rows: maximum number of papers to extract from library
-                    (default 1000)
-
-
+    token: api token
+    rows: maximum number of papers to extract from library (default 1000)
     """
-    # now extracting my first-author library
 
     results = requests.get(
         f"https://api.adsabs.harvard.edu/v1/biblib/libraries/{library_code}?rows={rows}",
@@ -200,31 +195,19 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
 
     print(bib_codes)
 
-    ranks = np.array([])
-    ranks_upper = np.array([])
-    paper_number = np.array([])
-    authors = np.array([])
-    pub_dates = np.array([])
+    records = []
     for bibcode in bib_codes:
         statistics = get_paper_rank(bib_code=bibcode, token=token)
-        ranks = np.append(ranks, statistics.percentage)
-        ranks_upper = np.append(ranks_upper, statistics.percentage_upper)
-        paper_number = np.append(paper_number, statistics.total_papers_month)
-        authors = np.append(authors, statistics.author)
-        pub_dates = np.append(pub_dates, statistics.pub_date)
+        records.append({
+            "Bibcode": bibcode,
+            "Author": statistics.author,
+            "PublicationDate": statistics.pub_date,
+            "Rank": statistics.percentage,
+            "Rank_upper": statistics.percentage_upper,
+            "PaperNumber": statistics.total_papers_month
+        })
 
-    # now saving the outputs
-
-    output = pd.DataFrame(
-        {
-            "Bibcode": bib_codes,
-            "Author": authors,
-            "PublicationDate": pub_dates,
-            "Rank": ranks,
-            "Rank_upper": ranks_upper,
-            "PaperNumber": paper_number,
-        }
-    )
+    output = pd.DataFrame(records)
     output.to_csv(output_name + ".csv", index=False)
 
 
