@@ -4,6 +4,7 @@ Script to query an ADS library and construct the Sabine plots.
 
 import os
 from urllib.parse import urlencode
+from dataclasses import dataclass
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -43,7 +44,29 @@ mpl.rcParams.update(
 )
 
 
-def get_paper_rank(bib_code: str, token: str) -> list:
+@dataclass
+class PaperRankResult:
+    """
+    Class for storing the results from the get_paper_rank function.
+
+
+    greater_citaitons: Number of refereed publications with greater citations than the target paper
+    total_papers_month: Number of refereed astro publications in the same month as target paper
+    percentage: Rank when compared against only papers with more citations
+    percentage_upper: Rank when compared against publications with >= number of citations.
+    author: Name of lead-author for target paper.
+    pub_date: publication date of target paper.
+    """
+
+    greater_citations: int
+    total_papers_month: int
+    percentage: float
+    percentage_upper: float
+    author: str
+    pub_data: str
+
+
+def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     """
     function that identifies the publication date and citation number for a single paper
     based on a bibcode, and then extracts the distribution of citations for all refereed astronomy
@@ -58,24 +81,6 @@ def get_paper_rank(bib_code: str, token: str) -> list:
     token: ADS API token (user-specific, to be accessed online at
     https://ui.adsabs.harvard.edu/user/settings/token)
 
-    Outputs
-    -------
-
-    num_greater_citaitons: Number of refereed publications with greater citations than the target
-                                                paper
-
-    num_total_month_papers: Total number of refereed astro publications in the same month as target
-                                                paper
-
-    percentage: Rank when compared against only papers with more citations
-
-    percentage_upper: Rank when compared against publications with more or equal number of
-                                        citations.
-
-    author: Name of lead-author for target paper.
-
-    pub_date: publication date of target paper.
-
     """
     encoded_query = urlencode(
         {
@@ -87,7 +92,7 @@ def get_paper_rank(bib_code: str, token: str) -> list:
     results = requests.get(
         f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
         headers={"Authorization": f"Bearer {token}"},
-        timeout=REQUEST_GET_TIMEOUT
+        timeout=REQUEST_GET_TIMEOUT,
     )
 
     print(
@@ -101,7 +106,7 @@ def get_paper_rank(bib_code: str, token: str) -> list:
     pub_date = results.json()["response"]["docs"][0]["pubdate"][0:7]
     author = results.json()["response"]["docs"][0]["author"][0].replace(" ", "")
 
-    # dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
+    # Dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
     citation_bounds = [0, 1, 2, 4, 10]
 
     citations = np.array([])
@@ -113,15 +118,17 @@ def get_paper_rank(bib_code: str, token: str) -> list:
         else:
             cite_end = citation_bounds[i + 1] - 1
 
-        encoded_query = urlencode({
-            "q": (
-                f"pubdate:[{pub_date} TO {pub_date}] "
-                f"AND collection:astronomy AND property:refereed "
-                f"AND citation_count:[{cite_start} TO {cite_end}]"
-			),
-            "fl": "title, bibcode, citation_count, property, pubdate",
-            "rows": 2000,
-		})
+        encoded_query = urlencode(
+            {
+                "q": (
+                    f"pubdate:[{pub_date} TO {pub_date}] "
+                    f"AND collection:astronomy AND property:refereed "
+                    f"AND citation_count:[{cite_start} TO {cite_end}]"
+                ),
+                "fl": "title, bibcode, citation_count, property, pubdate",
+                "rows": 2000,
+            }
+        )
 
         results = requests.get(
             f"https://api.adsabs.harvard.edu/v1/search/query?{encoded_query}",
@@ -130,32 +137,38 @@ def get_paper_rank(bib_code: str, token: str) -> list:
         )
 
         if len(results.json()["response"]["docs"]) == 2000:
-            print((
-                f"WARNING: number of results in citation range {cite_start} to {cite_end} "
-                f"reached query limit"))
+            print(
+                (
+                    f"WARNING: number of results in citation range {cite_start} to {cite_end} "
+                    f"reached query limit"
+                )
+            )
             print("Need to add value to citationBounds ")
 
-        # now extracting the histogram of citations
+        # Extracting the histogram of citations
         for doc in results.json()["response"]["docs"]:
             citations = np.append(citations, doc["citation_count"])
 
-    # now identifying the fraction with citations greater than or equal to the reference
+    # Identifying the fraction with citations greater than or equal to the reference
     num_greater_citaitons = len(citations[citations >= citation_count])
     num_total_month_papers = len(citations)
     percentage = (num_greater_citaitons / num_total_month_papers) * 100
-    percentage_upper = (len(citations[citations > citation_count]) / num_total_month_papers) * 100
+    percentage_upper = (
+        len(citations[citations > citation_count]) / num_total_month_papers
+    ) * 100
     print("Total astro refereed papers this month:", num_total_month_papers)
     print("Percentage rank of paper:", percentage)
     print("############################################################")
 
-    return [
+    result = PaperRankResult(
         num_greater_citaitons,
         num_total_month_papers,
         percentage,
         percentage_upper,
         author,
         pub_date,
-    ]
+    )
+    return result
 
 
 def GetLibraryRanks(LibraryCode, OutputName, token, rows=1000):
