@@ -230,17 +230,13 @@ def make_library_ranks_plot(library_code, output_name, token):
 
     output = pd.read_csv(f"{output_name}.csv")
 
-    for i in range(len(output["Rank"])):
-        if "&" in output["Bibcode"][i]:
-            output.loc[i, "Bibcode"] = (
-                output["Bibcode"][i].split("&")[0]
-                + "\&"
-                + output["Bibcode"][i].split("&")[1]
-            )
+    # Only update rows where '&' exists in Bibcode
+    mask = output["Bibcode"].str.contains("&", na=False)
+    output.loc[mask, "Bibcode"] = output.loc[mask, "Bibcode"].str.replace("&", r"\&", n=1)
 
     # now finally making a plot of the output
     fig = plt.figure(figsize=(len(output["Rank"]) * 0.25, 3))
-    ax1 = plt.subplot(111)
+    ax1 = fig.add_subplot(111)
 
     ax1.scatter(
         np.arange(len(output["Rank"])),
@@ -253,7 +249,7 @@ def make_library_ranks_plot(library_code, output_name, token):
         (output["Rank"][sel] + output["Rank_upper"][sel]) / 2,
         c="orange",
     )
-    
+
     for jj in range(len(output["Rank"])):
         ax1.plot([jj, jj], [output["Rank"][jj], output["Rank_upper"][jj]], c="k")
     ax1.axhline(
