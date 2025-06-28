@@ -3,6 +3,7 @@ Script to query an ADS library and construct the Sabine plots.
 """
 
 import os
+import shutil
 from urllib.parse import urlencode
 from dataclasses import dataclass
 
@@ -12,8 +13,14 @@ import numpy as np
 import pandas as pd
 import requests
 
+
+def is_latex_installed():
+    """Checks if system has latex installed and uses it in the plots if it does."""
+    return shutil.which("latex") is not None
+
+latex_avail = is_latex_installed()
 FONT_SIZE = 12
-REQUEST_GET_TIMEOUT = 10  # seconds
+REQUEST_GET_TIMEOUT = 10  #Seconds.
 mpl.rcParams.update(
     {
         "font.size": FONT_SIZE,
@@ -26,7 +33,7 @@ mpl.rcParams.update(
         "xtick.direction": "in",
         "ytick.direction": "in",
         "axes.linewidth": 1,
-        "text.usetex": True,
+        "text.usetex": latex_avail,
         "font.family": "serif",
         "font.serif": "Times New Roman",
         "legend.numpoints": 1,
@@ -96,16 +103,17 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
         timeout=REQUEST_GET_TIMEOUT,
     )
 
+    doc = results.json()["response"]["docs"][0]
     print(
         bib_code,
-        results.json()["response"]["docs"][0]["pubdate"][0:7],
+        doc["pubdate"][0:7],
         "Citations:",
-        results.json()["response"]["docs"][0]["citation_count"],
-        results.json()["response"]["docs"][0]["author"][0],
+        doc["citation_count"],
+        doc["author"][0],
     )
-    citation_count = results.json()["response"]["docs"][0]["citation_count"]
-    pub_date = results.json()["response"]["docs"][0]["pubdate"][0:7]
-    author = results.json()["response"]["docs"][0]["author"][0].replace(" ", "")
+    citation_count = doc["citation_count"]
+    pub_date = doc["pubdate"][0:7]
+    author = doc["author"][0].replace(" ", "")
 
     # Dividing the citation ditribution into chunks with fewer than 2000 hits, to not hit limit.
     citation_bounds = [0, 1, 2, 4, 10]
