@@ -1,14 +1,15 @@
-import requests
-import json
-from urllib.parse import urlencode, quote_plus
-import subprocess as sp
-import numpy as np
-import matplotlib as mpl
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
-import matplotlib.pyplot as plt
+"""
+Script to query an ADS library and construct the Sabine plots.
+"""
+
 import os
+from urllib.parse import urlencode
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import requests
 
 fsize = 12
 mpl.rcParams.update(
