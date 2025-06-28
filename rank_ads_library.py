@@ -2,54 +2,16 @@
 Script to query an ADS library and construct the Sabine plots.
 """
 
-import os
-import shutil
 from urllib.parse import urlencode
 from dataclasses import dataclass
-from datetime import datetime, UTC
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 
+from plot_mod import plot_ranks_plot
 
-def is_latex_installed():
-    """Checks if system has latex installed and uses it in the plots if it does."""
-    return shutil.which("latex") is not None
-
-latex_avail = is_latex_installed()
-FONT_SIZE = 12
 REQUEST_GET_TIMEOUT = 10  #Seconds.
-mpl.rcParams.update(
-    {
-        "font.size": FONT_SIZE,
-        "xtick.major.size": 8,
-        "ytick.major.size": 8,
-        "xtick.major.width": 1,
-        "ytick.major.width": 1,
-        "ytick.minor.size": 4,
-        "xtick.minor.size": 4,
-        "xtick.direction": "in",
-        "ytick.direction": "in",
-        "axes.linewidth": 1,
-        "text.usetex": latex_avail,
-        "font.family": "serif",
-        "font.serif": "Times New Roman",
-        "legend.numpoints": 1,
-        "legend.columnspacing": 1,
-        "legend.fontsize": FONT_SIZE - 2,
-        "legend.frameon": False,
-        "legend.labelspacing": 0.3,
-        "lines.markeredgewidth": 1.0,
-        "errorbar.capsize": 3.0,
-        "xtick.top": True,
-        "ytick.right": True,
-        "xtick.minor.visible": True,
-        "ytick.minor.visible": True,
-    }
-)
 
 
 @dataclass
@@ -79,7 +41,7 @@ def get_paper_rank(bib_code: str, token: str) -> PaperRankResult:
     function that identifies the publication date and citation number for a single paper
     based on a bibcode, and then extracts the distribution of citations for all refereed astronomy
     papers published in the same month. A perentage rank is then computed, rnking the paper against
-    other papers from the month based on citation count.
+    other papers from the month base on citation count.
 
     Arguments
     ----------
@@ -223,90 +185,6 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
     output.to_csv(output_name + ".csv", index=False)
 
 
-def make_library_ranks_plot(library_code, output_name, token):
-    """
-    For a given ADS library, either read-in a pre-generated output dataframe if available,
-    or generate a new one one using the get_library_ranks function, then generate a plot presenting
-    the ranks for all paper in the library.
-
-    Arguments
-    ---------
-    library_code: ADS library access code (identifiable though the library url
-    https://ui.adsabs.harvard.edu/user/libraries/<library_code>)
-
-    output_name: Name of output files
-    """
-    if not os.path.isfile(f"{output_name}.csv"):
-        get_library_ranks(library_code, output_name, token)
-
-    output = pd.read_csv(f"{output_name}.csv")
-
-    # Only update rows where '&' exists in Bibcode
-    mask = output["Bibcode"].str.contains("&", na=False)
-    output.loc[mask, "Bibcode"] = output.loc[mask, "Bibcode"].str.replace("&", r"\&", n=1)
-
-    fig = plt.figure(figsize=(len(output["Rank"]) * 0.25, 3))
-    ax1 = fig.add_subplot(111)
-
-    ax1.scatter(np.arange(len(output["Rank"])),(output["Rank"] + output["Rank_upper"]) / 2,c="k")
-    sel = ((output["Rank"] + output["Rank_upper"]) / 2) < 5
-    ax1.scatter(
-        np.arange(len(output["Rank"]))[sel],
-        (output["Rank"][sel] + output["Rank_upper"][sel]) / 2,
-        c="orange",
-    )
-
-    for i in range(len(output["Rank"])):
-        ax1.plot([i, i], [output["Rank"][i], output["Rank_upper"][i]], c="k")
-    ax1.axhline(np.median((output["Rank"] + output["Rank_upper"]) / 2), c="k", linestyle="--")
-
-    ax1.set_xlim([-0.5, len(output["Rank"]) - 0.5])
-    ax1.set_ylim([100, 0])
-    ax1.set_ylabel("Rank of paper")
-    ax1.set_xticks(np.arange(len(output["Rank"])))
-    ax1.set_xticklabels(np.array(output["Bibcode"]), rotation=90)
-
-    ax1.grid()
-
-    ax2 = ax1.twiny()
-    ax2.set_xlim([-0.5, len(output["Rank"]) - 0.5])
-    ax2.set_xticks(np.arange(len(output["Rank"])))
-    ax2.set_xticklabels(np.array(output["Author"]), rotation=90)
-
-    plt.savefig(output_name + ".pdf", bbox_inches="tight")
-    plt.close()
-
-
-
-
-def check_calls_available(token: str) -> None:
-    """
-    Checks how many ADS API calls are left using the given token.
-
-    Prints remaining calls, total call limit, and reset time.
-    """
-    url = "https://api.adsabs.harvard.edu/v1/search/query?q=star"
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers, timeout=REQUEST_GET_TIMEOUT)
-
-    if response.status_code != 200:
-        print(f"Error: HTTP {response.status_code}")
-        print(response.text)
-        return
-
-    remaining = response.headers.get("X-RateLimit-Remaining")
-    limit = response.headers.get("X-RateLimit-Limit")
-    reset = response.headers.get("X-RateLimit-Reset")
-
-    print(f"API Call Limit:     {limit}")
-    print(f"Calls Remaining:    {remaining}")
-
-    if reset:
-        reset_time = datetime.fromtimestamp(int(reset), tz=UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
-        print(f"Limit Resets At:    {reset_time}")
-    else:
-        print("Reset time not provided in headers.")
-
 if __name__ == "__main__":
 
     # personal access token
@@ -314,11 +192,13 @@ if __name__ == "__main__":
     TOKEN = "htI76Huxt0eloDKERX53ZkrczUUUhDzTkSll9Pjo"
 
     # making the full output for a single ADS library.
-    make_library_ranks_plot(
-        library_code="g3xxlnShS_iiymcLRdSUFg",
-        output_name="Ranks_BellstedtFirstAuthor",
-        token=TOKEN,
-    )
+    #make_library_ranks_plot(
+    #    library_code="g3xxlnShS_iiymcLRdSUFg",
+    #    output_name="Ranks_BellstedtFirstAuthor",
+    #    token=TOKEN,
+    #)
+
+    plot_ranks_plot("Ranks_BellstedtFirstAuthor.csv", "Poo.pdf")
 
     # extracting the statistics for just a single paper.
     stats = get_paper_rank(bib_code = '2022MNRAS.517.6035T', token=TOKEN)
