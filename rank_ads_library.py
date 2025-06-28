@@ -199,14 +199,16 @@ def get_library_ranks(library_code, output_name, token, rows=1000):
     records = []
     for bibcode in bib_codes:
         statistics = get_paper_rank(bib_code=bibcode, token=token)
-        records.append({
-            "Bibcode": bibcode,
-            "Author": statistics.author,
-            "PublicationDate": statistics.pub_date,
-            "Rank": statistics.percentage,
-            "Rank_upper": statistics.percentage_upper,
-            "PaperNumber": statistics.total_papers_month
-        })
+        records.append(
+            {
+                "Bibcode": bibcode,
+                "Author": statistics.author,
+                "PublicationDate": statistics.pub_date,
+                "Rank": statistics.percentage,
+                "Rank_upper": statistics.percentage_upper,
+                "PaperNumber": statistics.total_papers_month,
+            }
+        )
 
     output = pd.DataFrame(records)
     output.to_csv(output_name + ".csv", index=False)
@@ -234,15 +236,10 @@ def make_library_ranks_plot(library_code, output_name, token):
     mask = output["Bibcode"].str.contains("&", na=False)
     output.loc[mask, "Bibcode"] = output.loc[mask, "Bibcode"].str.replace("&", r"\&", n=1)
 
-    # now finally making a plot of the output
     fig = plt.figure(figsize=(len(output["Rank"]) * 0.25, 3))
     ax1 = fig.add_subplot(111)
 
-    ax1.scatter(
-        np.arange(len(output["Rank"])),
-        (output["Rank"] + output["Rank_upper"]) / 2,
-        c="k",
-    )
+    ax1.scatter(np.arange(len(output["Rank"])),(output["Rank"] + output["Rank_upper"]) / 2,c="k")
     sel = ((output["Rank"] + output["Rank_upper"]) / 2) < 5
     ax1.scatter(
         np.arange(len(output["Rank"]))[sel],
@@ -250,11 +247,9 @@ def make_library_ranks_plot(library_code, output_name, token):
         c="orange",
     )
 
-    for jj in range(len(output["Rank"])):
-        ax1.plot([jj, jj], [output["Rank"][jj], output["Rank_upper"][jj]], c="k")
-    ax1.axhline(
-        np.median((output["Rank"] + output["Rank_upper"]) / 2), c="k", linestyle="--"
-    )
+    for i in range(len(output["Rank"])):
+        ax1.plot([i, i], [output["Rank"][i], output["Rank_upper"][i]], c="k")
+    ax1.axhline(np.median((output["Rank"] + output["Rank_upper"]) / 2), c="k", linestyle="--")
 
     ax1.set_xlim([-0.5, len(output["Rank"]) - 0.5])
     ax1.set_ylim([100, 0])
